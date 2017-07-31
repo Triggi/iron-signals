@@ -81,8 +81,9 @@ of where they are in DOM.
       };
     },
     detached: function() {
+      var that = this;
       Object.keys(this._callbacksByName).forEach(function(name) {
-        var i = signalsByName[name].indexOf(this);
+        var i = signalsByName[name].indexOf(that);
         if (i >= 0) {
           signalsByName[name].splice(i, 1);
         }
