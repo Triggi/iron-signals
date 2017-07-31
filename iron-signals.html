@@ -51,10 +51,9 @@ of where they are in DOM.
         // only add one instance per signal for dispatching. keep count for removing individual listeners
         if (this._callbacksByName[name] == null) {
           signalsByName[name].push(this);
-          this._callbacksByName[name] = [cb];
-        } else {
-          this._callbacksByName[name].push(cb);
+          this._callbacksByName[name] = [];
         }
+        this._callbacksByName[name].push(cb);
         _addEventListener.call(this, name, cb);
       };
 
@@ -74,7 +73,9 @@ of where they are in DOM.
         this._callbacksByName[name].splice(cbIdx, 1);
         if (this._callbacksByName[name].length === 0) {
           var signalIdx = signalsByName[name].indexOf(this);
-          signalsByName[name].splice(signalIdx, 1);
+          if (signalIdx >= 0) {
+            signalsByName[name].splice(signalIdx, 1);
+          }
           delete this._callbacksByName[name];
         }
         _removeEventListener.call(this, name, cb);
