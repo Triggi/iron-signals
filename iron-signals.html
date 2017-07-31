@@ -37,46 +37,55 @@ of where they are in DOM.
   Polymer({
     is: 'iron-signals',
     ready: function() {
-      this._listenerCounts = {};
+      this._callbacksByName = {};
       // monkey patch addEventListener so we can build up a map
       var _addEventListener = this.addEventListener;
       this.addEventListener = function(name, cb) {
+        if (typeof cb !== 'function') {
+          return;
+        }
         if (!signalsByName[name]) {
           signalsByName[name] = [];
         }
 
         // only add one instance per signal for dispatching. keep count for removing individual listeners
-        if (this._listenerCounts[name] == null) {
+        if (this._callbacksByName[name] == null) {
           signalsByName[name].push(this);
-          this._listenerCounts[name] = 1;
-        } else {
-          this._listenerCounts[name]++;
+          this._callbacksByName[name] = [];
         }
-        _addEventListener.bind(this)(name, cb);
+        this._callbacksByName[name].push(cb);
+        _addEventListener.call(this, name, cb);
       };
 
       // monkey patch removeEventListener so we can keep database up to date
       var _removeEventListener = this.removeEventListener;
       this.removeEventListener = function(name, cb) {
-        if (this._listenerCounts[name] != null) {
-          this._listenerCounts[name]--;
-          if (this._listenerCounts[name] === 0) {
-            // only remove this element from the map if there is no listener assigned anymore for this signal
-            var i = signalsByName[name].indexOf(this);
-            if (i > 0) {
-              signalsByName[name].splice(i, 1);
-            }
-            // delete the entry for this element
-            delete this._listenerCounts[name];
-          }
+        // checks if event listener was added in the first place
+        if (this._callbacksByName[name] == null || typeof cb !== 'function') {
+          return;
         }
-        _removeEventListener.bind(this)(name, cb);
+        var cbIdx = this._callbacksByName[name].indexOf(cb);
+        if (cbIdx < 0) {
+          return;
+        }
+
+        // Remove the cb from the list and if none remain also delete it from the database
+        this._callbacksByName[name].splice(cbIdx, 1);
+        if (this._callbacksByName[name].length === 0) {
+          var signalIdx = signalsByName[name].indexOf(this);
+          if (signalIdx >= 0) {
+            signalsByName[name].splice(signalIdx, 1);
+          }
+          delete this._callbacksByName[name];
+        }
+        _removeEventListener.call(this, name, cb);
       };
     },
     detached: function() {
-      Object.keys(this._listenerCounts).forEach(function(name) {
-        var i = signalsByName[name].indexOf(this);
-        if (i > 0) {
+      var that = this;
+      Object.keys(this._callbacksByName).forEach(function(name) {
+        var i = signalsByName[name].indexOf(that);
+        if (i >= 0) {
           signalsByName[name].splice(i, 1);
         }
       });
